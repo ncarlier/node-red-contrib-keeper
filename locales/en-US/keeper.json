@@ -1,0 +1,38 @@
+{
+  "keeper": {
+    "label": {
+      "keeper": "Keeper",
+      "action": "Action",
+      "create": "Create your own app at",
+      "cred": "Paste your client credentials here",
+      "clientid": "Client Id",
+      "secret": "Secret",
+      "authenticate": "Authenticate with Nunux Keeper",
+      "keeperuser": "Keeper User"
+    },
+    "placeholder": {
+      "docid": "Document ID"
+    },
+    "tip": {
+      "redirect": "<p>Please configure the authorized <b>Redirect URIs</b> of your app to include the following url:</p>\n<code>__callback__</code>"
+    },
+    "status": {
+      "requesting": "requesting",
+      "failed": "failed",
+      "error": "error"
+    },
+    "warn": {
+      "missing-credentials": "Missing Nunux Keeper credentials"
+    },
+    "error": {
+      "not-found": "not found",
+      "no-credentials": "ERROR: no credentials - should never happen",
+      "request-failed": "Error while requesting Nunux Keeper",
+      "authorized": "<html><head></head><body>Authorised - you can close this window and return to Node-RED</body></html>",
+      "token-mismatch": "CSRF token mismatch, possible cross-site request forgery attempt.",
+      "no-action-specified": "No action specified (node.action or msg.action)",
+      "no-docid-specified": "No document id specified (node.docid or msg.docid or msg.payload.id)",
+      "something-broke": "Something went wrong in the authentication process. Please try again."
+    }
+  }
+}

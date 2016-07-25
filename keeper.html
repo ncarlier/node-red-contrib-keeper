@@ -1,0 +1,196 @@
+<!--
+  Copyright 2016 Nunux Org.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<script type="text/x-red" data-template-name="keeper-credentials">
+  <div id="node-config-keeper-client-keys">
+    <div class="form-row">
+      <p style="margin-top: 10px;"><b><span data-i18n="keeper.label.cred"></span>:</p>
+    </div>
+    <div class="form-row">
+      <label style="margin-left: 10px; margin-right: -10px;" for="node-config-input-clientId"><i class="fa fa-user"></i> <span data-i18n="keeper.label.clientid"></span></label>
+      <input type="text" id="node-config-input-clientId">
+    </div>
+    <div class="form-row">
+      <label style="margin-left: 10px; margin-right: -10px;" for="node-config-input-clientSecret"><i class="fa fa-key"></i> <span data-i18n="keeper.label.secret"></span></label>
+      <input type="password" id="node-config-input-clientSecret">
+    </div>
+    <div class="form-row">
+      <label>&nbsp;</label>
+      <a class="btn" id="node-config-start-auth" href="#" target="_blank"><span data-i18n="keeper.label.authenticate"></span></a>
+    </div>
+    <div class="form-tips" id="node-config-keeper-tooltip">
+    </div>
+  </div>
+  <div id="node-config-keeper">
+    <div class="form-row">
+      <label><i class="fa fa-user"></i> <span data-i18n="keeper.label.keeperuser"></span></label><span id="node-config-keeper-displayName" class="input-xlarge uneditable-input"></span>
+    </div>
+    <input type="hidden" id="node-config-input-displayName">
+  </div>
+</script>
+
+<script type="text/javascript">
+(function() {
+  RED.nodes.registerType('keeper-credentials',{
+    category: 'config',
+    defaults: {
+      displayName: {value:""}
+    },
+    credentials: {
+      displayName: {type:"text"},
+      clientId: { type: "text"},
+      clientSecret: { type: "password"}
+    },
+    label: function() {
+      return this.displayName || 'Keeper';
+    },
+    exportable: false,
+    oneditprepare: function() {
+      var id = this.id;
+      var pathname = document.location.pathname;
+      if (pathname.slice(-1) != "/") {
+        pathname += "/";
+      }
+      var callback = location.protocol + "//" +
+        location.hostname +
+        (location.port? ":"+location.port:"")+
+        pathname + "keeper-credentials/auth/callback";
+      var tip = this._("keeper.tip.redirect",{callback:callback});
+      $("#node-config-keeper-tooltip").html(tip);
+
+      function updateKeeperAuthButton() {
+        var v1 = $("#node-config-input-clientId").val();
+        var v2 = $("#node-config-input-clientSecret").val();
+        $("#node-config-start-auth").toggleClass("disabled",(v1.length === 0 || v2.length === 0));
+      }
+      $("#node-config-input-clientId").on('change keydown paste input', updateKeeperAuthButton);
+      $("#node-config-input-clientSecret").on('change keydown paste input', updateKeeperAuthButton);
+
+      function updateKeeperDisplayName(dn) {
+        $("#node-config-keeper-client-keys").hide();
+        $("#node-config-keeper").show();
+        $("#node-config-input-displayName").val(dn);
+        $("#node-config-keeper-displayName").html(dn);
+      }
+
+      function pollKeeperCredentials() {
+        $.getJSON('credentials/keeper-credentials/'+id,function(data) {
+          if (data.displayName) {
+            $("#node-config-dialog-ok").button("enable");
+            updateKeeperDisplayName(data.displayName);
+            delete window.keeperConfigNodeIntervalId;
+          } else {
+            window.keeperConfigNodeIntervalId = window.setTimeout(pollKeeperCredentials, 2000);
+          }
+        });
+      }
+
+      updateKeeperAuthButton();
+
+      if (this.displayName) {
+        updateKeeperDisplayName(this.displayName);
+      } else {
+        $("#node-config-keeper-client-keys").show();
+        $("#node-config-keeper").hide();
+        $("#node-config-dialog-ok").button("disable");
+      }
+
+      $("#node-config-start-auth").mousedown(function() {
+        var clientId = $("#node-config-input-clientId").val();
+        var clientSecret = $("#node-config-input-clientSecret").val();
+        var url = 'keeper-credentials/auth?id='+id+'&clientId='+clientId+"&clientSecret="+clientSecret+"&callback="+encodeURIComponent(callback);
+        $(this).attr("href",url);
+        window.keeperConfigNodeIntervalId = window.setTimeout(pollKeeperCredentials, 2000);
+      });
+      $("#node-config-start-auth").click(function(e) {
+        var clientId = $("#node-config-input-clientId").val();
+        var clientSecret = $("#node-config-input-clientSecret").val();
+        if (clientId === "" || clientSecret === "") {
+          e.preventDefault();
+        }
+      });
+    },
+    oneditsave: function() {
+      if (window.keeperConfigNodeIntervalId) {
+        window.clearTimeout(window.keeperConfigNodeIntervalId);
+        delete window.keeperConfigNodeIntervalId;
+      }
+    },
+    oneditcancel: function() {
+      if (window.keeperConfigNodeIntervalId) {
+        window.clearTimeout(window.keeperConfigNodeIntervalId);
+        delete window.keeperConfigNodeIntervalId;
+      }
+    }
+  });
+})();
+</script>
+
+<script type="text/x-red" data-template-name="keeper">
+  <div class="form-row">
+    <label for="node-input-keeper"><i class="fa fa-user"></i> <span data-i18n="keeper.label.keeper"></span></label>
+    <input type="text" id="node-input-keeper">
+  </div>
+  <div class="form-row node-input-request">
+    <label for="node-input-action"><i class="fa fa-code"></i> <span data-i18n="keeper.label.action"></span></label>
+    <select id="node-input-action">
+      <option value="get">GET</option>
+      <option value="post">POST</option>
+      <option value="put">UPDATE</option>
+      <option value="delete">REMOVE</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-docid"><i class="fa fa-tag"></i> <span data-i18n="keeper.label.docid"></span></label>
+    <input type="text" id="node-input-docid" data-i18n="[placeholder]keeper.placeholder.docid">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="keeper">
+<p>
+Keeper node. Retrieve, create, update or delete document from Nunux Keeper.
+</p>
+<p>
+The action is taken from the node <code>action</code> property or the <code>msg.action</code> property.
+<ul>
+<li>GET and REMOVE actions only needs an <code>docid</code> property into the node or the msg.</li>
+<li>UPDATE action needs the same <code>docid</code> property and any updatable property (content, title, label).</li>
+<li>POST action needs any property form a document (title, content, contentType, origin, label).</li>
+</ul>
+</p>
+<p>
+The result is put into <code>msg.payload</code> property.
+</p>
+</script>
+
+<script type="text/javascript">
+RED.nodes.registerType('keeper',{
+  category: 'storage-input',
+  color: '#336ca6',
+  defaults: {
+    keeper: {type: 'keeper-credentials', required: true},
+    action: {value: 'get'},
+    docid: {value: ''}
+  },
+  inputs: 1,
+  outputs: 1,
+  icon: 'keeper.png',
+  label: function() {
+    return this.action || 'keeper';
+  }
+});
+</script>
+
