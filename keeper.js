@@ -14,6 +14,8 @@
  * limitations under the License.
  **/
 
+const DEBUG = process.env.NODE_ENV === 'development'
+
 module.exports = function (RED) {
   'use strict'
 
@@ -46,7 +48,7 @@ module.exports = function (RED) {
       clientId: req.query.clientId,
       clientSecret: req.query.clientSecret
     }
-    const keeperClient = new KeeperClient(credentials)
+    const keeperClient = new KeeperClient(credentials, {debug: DEBUG})
 
     const csrfToken = crypto.randomBytes(18).toString('base64').replace(/\//g, '-').replace(/\+/g, '_')
     credentials.csrfToken = csrfToken
@@ -73,10 +75,9 @@ module.exports = function (RED) {
       )
     }
 
-    const keeperClient = new KeeperClient(credentials)
+    const keeperClient = new KeeperClient(credentials, {debug: DEBUG})
     keeperClient.token(credentials.callback, req.query.code)
     .then((creds) => {
-      creds.displayName = 'test'
       RED.nodes.addCredentials(node_id, creds)
       return res.send(RED._('keeper.error.authorized'))
     })
@@ -96,9 +97,13 @@ module.exports = function (RED) {
       this.warn(RED._('keeper.warn.missing-credentials'))
       return
     }
-    const keeperClient = new KeeperClient(this.keeper.credentials, function (creds) {
+
+    const keeperClient = new KeeperClient(this.keeper.credentials, {debug: DEBUG}, function (creds) {
       RED.nodes.addCredentials(node.id, creds)
     })
+    if (keeperClient.credentials.expireTime) {
+      keeperClient.enableAutoRefreshToken()
+    }
 
     node.on('input', function (msg) {
       const action = node.action || msg.action
@@ -134,8 +139,9 @@ module.exports = function (RED) {
         node.status({})
         node.send(msg)
       }).catch((err) => {
-        node.error(RED._('keeper.error.request-failed', {err: err.toString()}), msg)
+        node.error(RED._('keeper.error.request-failed', {err: JSON.stringify(err)}), msg)
         node.status({fill: 'red', shape: 'ring', text: 'keeper.status.failed'})
+        node.send(err)
       })
     })
   }

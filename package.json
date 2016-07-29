@@ -1,6 +1,6 @@
 {
   "name"         : "node-red-contrib-keeper",
-  "version"      : "0.0.1",
+  "version"      : "0.0.2",
   "description"  : "Node-RED nodes to save and retrieve document from Nunux Keeper",
   "dependencies" : {
     "request": "^2.73.0",

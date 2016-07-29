@@ -1,7 +1,7 @@
 node-red-contrib-keeper
 =======================
 
-<a href="http://nodered.org" target="_new">Node-RED</a> nodes to save and
+<a href="http://nodered.org" target="_new">Node-RED</a> node to save and
 retrieve document from Nunux Keeper v2.
 
 Please note that this node is not compatible with Nunux Keeper v1.
@@ -34,5 +34,5 @@ To create a document The message payload should be as follow:
 - `contentType`: Document type
 - `origin`: Document origin URL
 
-All attributes are optional. If only **origin** attribute is provided, then the
+All attributes are optional. If only `origin` attribute is provided, then the
 document will be extracted from the endpoint.

@@ -27,7 +27,7 @@
     "error": {
       "not-found": "not found",
       "no-credentials": "ERROR: no credentials - should never happen",
-      "request-failed": "Error while requesting Nunux Keeper",
+      "request-failed": "Error while requesting Nunux Keeper: __err__",
       "authorized": "<html><head></head><body>Authorised - you can close this window and return to Node-RED</body></html>",
       "token-mismatch": "CSRF token mismatch, possible cross-site request forgery attempt.",
       "no-action-specified": "No action specified (node.action or msg.action)",

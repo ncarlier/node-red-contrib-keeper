@@ -3,6 +3,15 @@
 const request = require('request')
 const url = require('url')
 
+function base64urlUnescape (str) {
+  str += new Array(5 - str.length % 4).join('=')
+  return str.replace(/\-/g, '+').replace(/_/g, '/')
+}
+
+function base64urlDecode (str) {
+  return new Buffer(base64urlUnescape(str), 'base64').toString()
+}
+
 class KeeperApi {
   constructor (client) {
     this.client = client
@@ -44,17 +53,48 @@ class KeeperApi {
 }
 
 class KeeperClient {
-  constructor (credentials, onUpdateCredentials) {
+  constructor (credentials, options, onUpdateCredentials) {
+    // TODO Add debug flag
     this.credentials = Object.assign({
       authSite: 'http://login.nunux.org',
       authPath: '/auth/realms/NunuxKeeper/protocol/openid-connect/auth',
       tokenPath: '/auth/realms/NunuxKeeper/protocol/openid-connect/token',
       apiSite: 'http://api.nunux.org/keeper'
     }, credentials)
+    this.options = Object.assign({
+      debug: false
+    }, options)
     this.onUpdateCredentials = onUpdateCredentials || function (cred) {
-      console.warn('KeeperClient: Credential updated but no callback registered.')
-    }
+      this._log('Credential updated but no callback registered.')
+    }.bind(this)
     this.api = new KeeperApi(this)
+  }
+
+  _log () {
+    const p1 = arguments[0]
+    const pn = Array.prototype.slice.call(arguments, 1)
+    console.log.apply(console, ['KeeperClient: ' + p1].concat(pn))
+  }
+
+  _debug () {
+    if (this.options.debug) {
+      this._log.apply(this, arguments)
+    }
+  }
+
+  _error () {
+    const p1 = arguments[0]
+    const pn = Array.prototype.slice.call(arguments, 1)
+    console.error.apply(console, ['KeeperClient: ' + p1].concat(pn))
+  }
+
+  static decodeAccessToken (token) {
+    const segments = token.split('.')
+    if (segments.length !== 3) {
+      return {email: 'Unknown'}
+    }
+    const payload = JSON.parse(base64urlDecode(segments[1]))
+    return payload
   }
 
   authorizeURL (redirect_uri, state) {
@@ -82,6 +122,7 @@ class KeeperClient {
   }
 
   token (redirect_uri, code) {
+    this._debug('Getting token...', code)
     return new Promise((resolve, reject) => {
       request.post({
         url: this._tokenURL(),
@@ -95,19 +136,20 @@ class KeeperClient {
         }
       }, (err, result, data) => {
         if (err) {
-          console.error('KeeperClient: Unable to get token.', err)
+          this._error('Unable to get token (http error).', err)
           return reject(err)
         }
         if (data.error) {
-          console.error('KeeperClient: Unable to get token.', data.error)
+          this._error('Unable to get token.', data.error)
           return reject(data.error)
         }
-        this.credentials.accessToken = data.access_token
         this.credentials.accessToken = data.access_token
         this.credentials.refreshToken = data.refresh_token
         this.credentials.expiresIn = data.expires_in
         this.credentials.expireTime = data.expires_in + (new Date().getTime() / 1000)
         this.credentials.tokenType = data.token_type
+        const decoded = KeeperClient.decodeAccessToken(this.credentials.accessToken)
+        this.credentials.displayName = decoded.email || decoded.name
         // Notify new credentials
         this.onUpdateCredentials(this.credentials)
         return resolve(this.credentials)
@@ -115,12 +157,26 @@ class KeeperClient {
     })
   }
 
+  enableAutoRefreshToken () {
+    if (this.refreshTimeout) {
+      clearTimeout(this.refreshTimeout)
+    }
+    // Compute the refresh tiemout one minute before expiration
+    const timeout = this.credentials.expireTime - Date.now() - 60000
+    this._debug('Expiration time:', this.credentials.expireTime)
+    this._debug('Computed timeout:', timeout)
+    this.refreshTimeout = setTimeout(() => {
+      this._refreshToken()
+    }, timeout)
+  }
+
   _refreshToken () {
     if (!this.credentials.refreshToken) {
-      console.error('KeeperClient: Unable to refresh. No refresh token.')
+      this._error('Unable to refresh. No refresh token.')
       return Promise.reject('ENOREFRESHTOKEN')
     }
     return new Promise((resolve, reject) => {
+      this._debug('Refreshing the token...')
       request.post({
         url: this._tokenURL(),
         json: true,
@@ -132,20 +188,23 @@ class KeeperClient {
         }
       }, (err, result, data) => {
         if (err) {
-          console.error('KeeperClient: Unable to get refresh token.', err)
+          this._error('Unable to get refresh token (http error).', err)
           return reject(err)
         }
         if (data.error) {
-          console.error('KeeperClient: Unable to get refresh token.', data)
+          this._error('Unable to get refresh token.', data)
           return reject(data)
         }
         this.credentials.accessToken = data.access_token
+        this.credentials.expiresIn = data.expires_in
+        this.credentials.expireTime = Date.now() + (data.expires_in * 1000)
+        this.credentials.tokenType = data.token_type
         if (data.refresh_token) {
           this.credentials.refreshToken = data.refresh_token
+          if (this.refreshTimeout) {
+            this.enableAutoRefreshToken()
+          }
         }
-        this.credentials.expiresIn = data.expires_in
-        this.credentials.expireTime = data.expires_in + (new Date().getTime() / 1000)
-        this.credentials.tokenType = data.token_type
         // Notify new credentials
         this.onUpdateCredentials(this.credentials)
         return resolve(this.credentials)
@@ -159,6 +218,7 @@ class KeeperClient {
       req = { url: req }
     }
     req.method = req.method || 'GET'
+    this._debug('%s %s', req.method, req.url)
     if (!req.hasOwnProperty('json')) {
       req.json = true
     }
@@ -168,7 +228,7 @@ class KeeperClient {
     // Trigger refresh token if access token is expired
     if (!this.credentials.expireTime || this.credentials.expireTime < (new Date().getTime() / 1000)) {
       if (retries === 0) {
-        console.error('KeeperClient: Too many refresh attempts.')
+        this._error('Too many refresh attempts.')
         return Promise.reject('ETOOMANYREFRESH')
       }
       return this._refreshToken()
@@ -176,18 +236,18 @@ class KeeperClient {
     }
 
     return new Promise((resolve, reject) => {
-      request(req, function (err, result, data) {
+      request(req, (err, result, data) => {
         if (err) {
-          console.error('KeeperClient: Request error.', err)
+          this._error('Request error (http error).', err)
           return reject(err)
         }
         if (data.error) {
-          console.error('KeeperClient: Request error.', data.error)
+          this._error('Request error.', data.error)
           return reject(data.error)
         }
         if (result.statusCode === 401 && retries > 0) {
           retries = retries - 1
-          console.error('KeeperClient: 401 received. Trying to refresh the token...')
+          this._error('401 received. Trying to refresh the token...')
           return this._refreshToken()
           .then(() => this._request(req, retries))
           .then(resolve)
