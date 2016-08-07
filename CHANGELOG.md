@@ -1,6 +1,17 @@
 Changelog
 =========
 
+0.0.3
+-----
+
+### Features
+
+* Using official Nunux Keeper client (node-keeper)
+
+### Fix
+
+* Put error into the message payload
+
 0.0.2
 -----
 
