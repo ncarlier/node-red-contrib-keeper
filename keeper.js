@@ -19,7 +19,7 @@ const DEBUG = process.env.NODE_ENV === 'development'
 module.exports = function (RED) {
   'use strict'
 
-  const KeeperClient = require('./keeper-client')
+  const KeeperClient = require('node-keeper')
   const crypto = require('crypto')
 
   function KeeperNode (n) {
@@ -139,9 +139,12 @@ module.exports = function (RED) {
         node.status({})
         node.send(msg)
       }).catch((err) => {
-        node.error(RED._('keeper.error.request-failed', {err: JSON.stringify(err)}), msg)
+        node.error(RED._('keeper.error.request-failed', {err: JSON.stringify(err)}))
         node.status({fill: 'red', shape: 'ring', text: 'keeper.status.failed'})
-        node.send(err)
+        msg.payload = err
+        msg.error = err
+        msg.statusCode = 502
+        node.send(msg)
       })
     })
   }
