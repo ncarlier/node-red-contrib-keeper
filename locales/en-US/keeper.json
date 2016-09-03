@@ -8,7 +8,8 @@
       "clientid": "Client Id",
       "secret": "Secret",
       "authenticate": "Authenticate with Nunux Keeper",
-      "keeperuser": "Keeper User"
+      "keeperuser": "Keeper User",
+      "docid": "Document ID"
     },
     "placeholder": {
       "docid": "Document ID"
