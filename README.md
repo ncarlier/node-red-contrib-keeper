@@ -6,6 +6,8 @@ retrieve document from Nunux Keeper v2.
 
 Please note that this node is not compatible with Nunux Keeper v1.
 
+![Screenshot](screenshot.png)
+
 Install
 -------
 
