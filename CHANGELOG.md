@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.0.5
+-----
+
+### Features
+
+* Update Nunux Keeper client version
+
 0.0.3
 -----
 
