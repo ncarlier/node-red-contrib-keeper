@@ -4,7 +4,7 @@
   "description": "Node-RED nodes to save and retrieve document from Nunux Keeper",
   "dependencies": {
     "is-utf8": "0.2.0",
-    "minimatch": "2.0.*",
+    "minimatch": "3.0.2",
     "node-keeper": "^0.2.0",
     "request": "^2.73.0"
   },
