@@ -6,6 +6,14 @@ retrieve document from Nunux Keeper v2.
 
 Please note that this node is not compatible with Nunux Keeper v1.
 
+---
+
+### :warning::warning::warning:This project is discontinued:warning::warning::warning:
+
+**Please consider to use [node-red-contrib-openid](https://github.com/ncarlier/node-red-contrib-openid) as replacement**
+
+---
+
 ![Screenshot](screenshot.png)
 
 Install
